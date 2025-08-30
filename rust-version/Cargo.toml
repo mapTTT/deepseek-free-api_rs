@@ -1,0 +1,72 @@
+[package]
+name = "deepseek-free-api"
+version = "0.1.0"
+edition = "2021"
+authors = ["Your Name <your.email@example.com>"]
+description = "DeepSeek Free API Server written in Rust"
+license = "ISC"
+
+[dependencies]
+# Web框架
+tokio = { version = "1.0", features = ["full"] }
+axum = { version = "0.7", features = ["ws"] }
+axum-extra = { version = "0.9", features = ["typed-header"] }
+tower = "0.4"
+tower-http = { version = "0.5", features = ["cors", "trace"] }
+hyper = { version = "1.0", features = ["full"] }
+
+# 异步HTTP客户端
+reqwest = { version = "0.11", features = ["json", "stream", "cookies"] }
+eventsource-stream = "0.2"
+
+# JSON序列化
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# 日志
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# 配置管理
+config = "0.14"
+
+# 随机数和UUID
+uuid = { version = "1.0", features = ["v4"] }
+rand = "0.8"
+
+# 时间处理
+chrono = { version = "0.4", features = ["serde"] }
+
+# 异步工具
+futures-util = "0.3"
+futures = "0.3"
+tokio-stream = "0.1"
+
+# Base64编码
+base64 = "0.21"
+
+# 错误处理
+anyhow = "1.0"
+thiserror = "1.0"
+
+# WASM runtime (for challenge calculation)
+wasmtime = { version = "13.0", optional = true }
+
+# 正则表达式
+regex = "1.0"
+
+# 环境变量
+dotenv = "0.15"
+
+# HTTP类型
+http = "1.0"
+mime = "0.3.17"
+
+# 颜色输出
+colored = "2.0"
+
+# 异步锁
+parking_lot = "0.12"
+
+[dev-dependencies]
+tokio-test = "0.4"
