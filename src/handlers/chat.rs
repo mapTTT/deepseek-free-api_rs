@@ -1,18 +1,17 @@
 use crate::error::{ApiError, ApiResult};
 use crate::handlers::AppState;
 use crate::models::ChatCompletionRequest;
-use crate::utils::{select_random_token, split_tokens};
 use axum::{
     extract::State,
     http::HeaderMap,
-    response::{sse::Event, Json, Response, Sse, IntoResponse},
+    response::{sse::Event, Json, Sse, IntoResponse, Response},
 };
 use futures_util::{stream::StreamExt, Stream};
 use serde_json::{json, Value};
 use std::convert::Infallible;
 use std::pin::Pin;
 
-/// 聊天补全处理器
+/// 聊天补全处理器  
 pub async fn completions(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -31,7 +30,7 @@ pub async fn completions(
         (Some(conv_id), Some(session))
     } else {
         // 兼容模式：直接使用userToken
-        let user_token = get_authorization_and_token(&headers, &state)?;
+        let _user_token = get_authorization_and_token(&headers, &state)?;
         (request.conversation_id.clone(), None)
     };
 

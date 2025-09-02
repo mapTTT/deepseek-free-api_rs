@@ -219,10 +219,14 @@ impl SessionPoolManager {
     ) -> AppResult<(String, DeepSeekSession)> {
         // 1. 如果有conversation_id，先尝试找到对应的会话
         if let Some(conv_id) = &conversation_id {
-            let mapping = self.session_mapping.read();
-            if let Some((mapped_api_key, account_email)) = mapping.get(conv_id) {
+            let existing_mapping = {
+                let mapping = self.session_mapping.read();
+                mapping.get(conv_id).cloned()
+            };
+            
+            if let Some((mapped_api_key, account_email)) = existing_mapping {
                 if mapped_api_key == api_key {
-                    return self.reuse_existing_session(api_key, account_email, conv_id).await;
+                    return self.reuse_existing_session(api_key, &account_email, conv_id).await;
                 }
             }
         }
@@ -418,7 +422,7 @@ impl SessionPoolManager {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct SessionPoolStats {
     pub api_key: String,
     pub total_accounts: usize,

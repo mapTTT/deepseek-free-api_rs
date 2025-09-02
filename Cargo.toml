@@ -9,7 +9,7 @@ license = "ISC"
 [dependencies]
 # Web框架
 tokio = { version = "1.0", features = ["full", "sync"] }
-axum = { version = "0.7", features = ["ws"] }
+axum = { version = "0.7", features = ["ws", "macros"] }
 axum-extra = { version = "0.9", features = ["typed-header"] }
 tower = "0.4"
 tower-http = { version = "0.5", features = ["cors", "trace"] }

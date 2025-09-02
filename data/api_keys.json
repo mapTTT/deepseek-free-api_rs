@@ -1,0 +1,40 @@
+{
+  "api_keys": {
+    "dsk-70016381486c473284ae6fc80b664f8d": {
+      "created_at": 1756800929,
+      "expires_at": 1757405729,
+      "id": "799213c9-812b-4a9c-88a5-b3c7c608bd42",
+      "is_active": true,
+      "key": "dsk-70016381486c473284ae6fc80b664f8d",
+      "name": "测试聊天密钥",
+      "usage_count": 0,
+      "user_tokens": []
+    },
+    "dsk-b2197f1db96a49389c75d11f3f34ef24": {
+      "created_at": 1756800048,
+      "expires_at": 1759392048,
+      "id": "0093541b-5204-44dd-9e98-1f53aae90238",
+      "is_active": true,
+      "key": "dsk-b2197f1db96a49389c75d11f3f34ef24",
+      "name": "test-key",
+      "usage_count": 0,
+      "user_tokens": []
+    },
+    "dsk-fc25e9f5261746a3b5924c6787f06a7e": {
+      "created_at": 1756800816,
+      "expires_at": 1757405616,
+      "id": "18f6c798-06bc-45dd-91a3-c4ca9caf0b73",
+      "is_active": true,
+      "key": "dsk-fc25e9f5261746a3b5924c6787f06a7e",
+      "name": "测试密钥-演示",
+      "usage_count": 0,
+      "user_tokens": []
+    }
+  },
+  "saved_at": 1756800929,
+  "user_tokens": {
+    "dsk-70016381486c473284ae6fc80b664f8d": [],
+    "dsk-b2197f1db96a49389c75d11f3f34ef24": [],
+    "dsk-fc25e9f5261746a3b5924c6787f06a7e": []
+  }
+}

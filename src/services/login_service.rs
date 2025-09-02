@@ -6,6 +6,8 @@ use std::time::{Duration, UNIX_EPOCH, SystemTime};
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use tracing::{info, warn, error, debug};
+use base64::prelude::*;
+use chrono;
 
 pub struct LoginService {
     client: Client,
@@ -14,12 +16,25 @@ pub struct LoginService {
 
 impl LoginService {
     pub fn new() -> Self {
-        // 创建一个支持cookie的HTTP客户端
-        let jar = Arc::new(Jar::default());
+        // 创建一个支持cookie的HTTP客户端，使用更真实的浏览器特征
+        let _jar = Arc::new(Jar::default());
         let client = Client::builder()
             .cookie_store(true)
-            .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+            .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36")
             .timeout(Duration::from_secs(30))
+            .default_headers({
+                let mut headers = reqwest::header::HeaderMap::new();
+                headers.insert("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7".parse().unwrap());
+                headers.insert("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8".parse().unwrap());
+                headers.insert("Accept-Encoding", "gzip".parse().unwrap());
+                headers.insert("Connection", "keep-alive".parse().unwrap());
+                headers.insert("Upgrade-Insecure-Requests", "1".parse().unwrap());
+                headers.insert("Sec-Fetch-Dest", "document".parse().unwrap());
+                headers.insert("Sec-Fetch-Mode", "navigate".parse().unwrap());
+                headers.insert("Sec-Fetch-Site", "none".parse().unwrap());
+                headers.insert("Sec-Fetch-User", "?1".parse().unwrap());
+                headers
+            })
             .build()
             .expect("Failed to create HTTP client");
 
@@ -33,31 +48,51 @@ impl LoginService {
     pub async fn login(&self, email: &str, password: &str) -> AppResult<String> {
         info!("开始DeepSeek登录流程: {}", email);
 
-        // 1. 首先访问登录页面获取必要的cookies和信息
-        let login_page_url = format!("{}/sign_in", self.base_url);
-        let response = self.client.get(&login_page_url).send().await
-            .map_err(|e| AppError::ExternalApi(format!("访问登录页面失败: {}", e)))?;
-
-        if !response.status().is_success() {
-            return Err(AppError::ExternalApi(format!("登录页面访问失败: {}", response.status())));
-        }
-
-        debug!("成功访问登录页面");
-
-        // 2. 准备登录请求
-        let login_url = format!("{}/api/v1/users/login", self.base_url);
+        // 直接尝试登录API，使用精确的浏览器请求头
+        let login_url = format!("{}/api/v0/users/login", self.base_url);
+        
+        // 生成设备ID
+        let timestamp = chrono::Utc::now().timestamp();
+        let device_id = base64::prelude::BASE64_STANDARD.encode(format!("web_device_{}_{}", timestamp, email.len()));
+        
         let login_payload = json!({
+            "area_code": "",
+            "device_id": device_id,
             "email": email,
-            "password": password,
-            "remember_me": true
+            "mobile": "",
+            "os": "web",
+            "password": password
         });
 
-        // 3. 发送登录请求
+        debug!("准备发送登录请求到: {}", login_url);
+        debug!("登录payload: {}", serde_json::to_string_pretty(&login_payload).unwrap_or_default());
+
+        // 发送登录请求，完全模拟浏览器
         let login_response = self.client
             .post(&login_url)
+            .header("Accept", "*/*")
+            .header("Accept-Encoding", "gzip, deflate, br, zstd")
+            .header("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6")
+            .header("Cache-Control", "no-cache")
             .header("Content-Type", "application/json")
-            .header("Referer", &login_page_url)
-            .header("X-Requested-With", "XMLHttpRequest")
+            .header("Origin", "https://chat.deepseek.com")
+            .header("Pragma", "no-cache")
+            .header("Priority", "u=1, i")
+            .header("Referer", "https://chat.deepseek.com/sign_in")
+            .header("Sec-Ch-Ua", "\"Microsoft Edge\";v=\"131\", \"Chromium\";v=\"131\", \"Not_A Brand\";v=\"24\"")
+            .header("Sec-Ch-Ua-Arch", "\"x86\"")
+            .header("Sec-Ch-Ua-Bitness", "\"64\"")
+            .header("Sec-Ch-Ua-Mobile", "?0")
+            .header("Sec-Ch-Ua-Platform", "\"Windows\"")
+            .header("Sec-Ch-Ua-Platform-Version", "\"19.0.0\"")
+            .header("Sec-Fetch-Dest", "empty")
+            .header("Sec-Fetch-Mode", "cors")
+            .header("Sec-Fetch-Site", "same-origin")
+            .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 Edg/131.0.0.0")
+            .header("X-App-Version", "20241129.1")
+            .header("X-Client-Locale", "zh_CN")
+            .header("X-Client-Platform", "web")
+            .header("X-Client-Version", "1.3.0-auto-resume")
             .json(&login_payload)
             .send()
             .await
@@ -77,10 +112,10 @@ impl LoginService {
                     .unwrap_or("登录失败");
                 return Err(AppError::ExternalApi(format!("DeepSeek登录失败: {}", error_msg)));
             }
-            return Err(AppError::ExternalApi(format!("登录失败，状态码: {}", status)));
+            return Err(AppError::ExternalApi(format!("登录失败，状态码: {} - {}", status, response_text)));
         }
 
-        // 4. 解析登录响应
+        // 5. 解析登录响应
         let login_result: Value = serde_json::from_str(&response_text)
             .map_err(|e| AppError::ExternalApi(format!("解析登录响应失败: {}", e)))?;
 
@@ -94,7 +129,7 @@ impl LoginService {
             }
         }
 
-        // 5. 尝试通过不同方式获取token
+        // 6. 尝试通过不同方式获取token
         let user_token = self.extract_user_token(&login_result).await?;
 
         info!("DeepSeek登录成功，获取到userToken: {}...", 
