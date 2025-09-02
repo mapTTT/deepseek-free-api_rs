@@ -23,17 +23,30 @@ pub async fn completions(
         return Err(ApiError::InvalidRequest("Messages cannot be empty".to_string()));
     }
 
-    // 获取用户token
-    let user_token = get_authorization_and_token(&headers, &state)?;
+    // 获取用户token和会话
+    let (conversation_id, session) = if let Some(api_key) = get_api_key_from_header(&headers) {
+        // 使用API密钥和会话池
+        let (conv_id, session) = state.api_key_manager.acquire_session(&api_key, request.conversation_id.clone()).await
+            .map_err(|e| ApiError::TokenError(format!("Failed to acquire session: {}", e)))?;
+        (Some(conv_id), Some(session))
+    } else {
+        // 兼容模式：直接使用userToken
+        let user_token = get_authorization_and_token(&headers, &state)?;
+        (request.conversation_id.clone(), None)
+    };
+
+    let user_token = session.as_ref()
+        .map(|s| s.user_token.clone())
+        .unwrap_or_else(|| get_authorization_and_token(&headers, &state).unwrap_or_default());
 
     let model = request.model.as_deref().unwrap_or("deepseek").to_lowercase();
     let stream = request.stream.unwrap_or(false);
 
-    if stream {
+    let result = if stream {
         // 流式响应
         let stream = state
             .client
-            .create_completion_stream(&model, &request.messages, &user_token, request.conversation_id.as_deref())
+            .create_completion_stream(&model, &request.messages, &user_token, conversation_id.as_deref())
             .await?;
 
         let sse_stream = create_sse_stream(stream);
@@ -42,11 +55,18 @@ pub async fn completions(
         // 非流式响应
         let response = state
             .client
-            .create_completion(&model, &request.messages, &user_token, request.conversation_id.as_deref())
+            .create_completion(&model, &request.messages, &user_token, conversation_id.as_deref())
             .await?;
 
         Ok(Json(response).into_response())
+    };
+
+    // 释放会话
+    if let Some(conv_id) = conversation_id {
+        state.api_key_manager.release_session(&conv_id);
     }
+
+    result
 }
 
 /// 获取模型列表
@@ -155,6 +175,18 @@ pub async fn models() -> Json<Value> {
             }
         ]
     }))
+}
+
+/// 从请求头获取API密钥
+fn get_api_key_from_header(headers: &HeaderMap) -> Option<String> {
+    let auth_header = headers.get("authorization")?;
+    let auth_str = auth_header.to_str().ok()?;
+    
+    if let Some(api_key) = auth_str.strip_prefix("Bearer dsk-") {
+        Some(format!("dsk-{}", api_key))
+    } else {
+        None
+    }
 }
 
 /// 获取授权头和用户token

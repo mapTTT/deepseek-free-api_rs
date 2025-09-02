@@ -60,6 +60,7 @@ pub async fn create_router(config: Config) -> ApiResult<Router> {
         .route("/api_keys/list", get(api_keys::list_api_keys))
         .route("/api_keys/deactivate", post(api_keys::deactivate_api_key))
         .route("/api_keys/cleanup", post(api_keys::cleanup_expired_keys))
+        .route("/api_keys/stats", post(api_keys::get_session_pool_stats))
         
         // 登录和Token验证（调试用）
         .route("/auth/login", post(api_keys::login_for_token))

@@ -1,6 +1,7 @@
 use crate::error::{AppError, AppResult};
 use crate::models::*;
 use crate::services::login_service::LoginService;
+use crate::services::session_pool::SessionPoolManager;
 use std::collections::HashMap;
 use std::sync::Arc;
 use parking_lot::RwLock;
@@ -15,12 +16,14 @@ pub struct ApiKeyManager {
     api_keys: Arc<RwLock<HashMap<String, ApiKey>>>,
     user_tokens: Arc<RwLock<HashMap<String, Vec<String>>>>, // api_key -> user_tokens
     login_service: Arc<LoginService>,
+    session_pool: Arc<SessionPoolManager>,
     storage_path: String,
 }
 
 impl ApiKeyManager {
     pub fn new() -> Self {
         let login_service = Arc::new(LoginService::new());
+        let session_pool = Arc::new(SessionPoolManager::new());
         let storage_path = std::env::var("API_KEYS_STORAGE_PATH")
             .unwrap_or_else(|_| "./data/api_keys.json".to_string());
 
@@ -28,6 +31,7 @@ impl ApiKeyManager {
             api_keys: Arc::new(RwLock::new(HashMap::new())),
             user_tokens: Arc::new(RwLock::new(HashMap::new())),
             login_service,
+            session_pool,
             storage_path,
         };
 
@@ -116,6 +120,9 @@ impl ApiKeyManager {
             token_list.len()
         };
 
+        // 添加到会话池
+        self.session_pool.add_account(api_key.clone(), email.clone(), user_token.clone());
+
         // 保存到存储
         if let Err(e) = self.save_to_storage() {
             warn!("保存账户信息失败: {}", e);
@@ -152,6 +159,34 @@ impl ApiKeyManager {
         self.increment_usage(api_key);
 
         Ok(user_token)
+    }
+
+    /// 获取会话（新方法，支持上下文保持）
+    pub async fn acquire_session(
+        &self, 
+        api_key: &str, 
+        conversation_id: Option<String>
+    ) -> AppResult<(String, crate::services::session_pool::DeepSeekSession)> {
+        if !self.is_api_key_valid(api_key)? {
+            return Err(AppError::Unauthorized("无效的API密钥".to_string()));
+        }
+
+        let (conv_id, session) = self.session_pool.acquire_session(api_key, conversation_id).await?;
+        
+        // 记录使用次数
+        self.increment_usage(api_key);
+        
+        Ok((conv_id, session))
+    }
+
+    /// 释放会话
+    pub fn release_session(&self, conversation_id: &str) {
+        self.session_pool.release_session(conversation_id);
+    }
+
+    /// 获取会话池统计信息
+    pub fn get_session_pool_stats(&self, api_key: &str) -> Option<crate::services::session_pool::SessionPoolStats> {
+        self.session_pool.get_api_key_stats(api_key)
     }
 
     /// 检查API密钥是否有效

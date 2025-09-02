@@ -134,3 +134,19 @@ pub async fn cleanup_expired_keys(
         "cleaned_count": cleaned_count
     })))
 }
+
+/// 获取会话池统计信息
+pub async fn get_session_pool_stats(
+    State(state): State<AppState>,
+    Json(request): Json<serde_json::Value>,
+) -> ApiResult<JsonResponse<serde_json::Value>> {
+    let api_key = request.get("api_key")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| ApiError::BadRequest("缺少api_key参数".to_string()))?;
+
+    if let Some(stats) = state.api_key_manager.get_session_pool_stats(api_key) {
+        Ok(JsonResponse(serde_json::json!(stats)))
+    } else {
+        Err(ApiError::NotFound("API密钥不存在或无统计信息".to_string()))
+    }
+}

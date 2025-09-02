@@ -2,7 +2,7 @@
 
 # 测试API密钥管理系统的脚本
 
-BASE_URL="http://localhost:3000"
+BASE_URL="http://localhost:8000"
 
 echo "=== DeepSeek Free API 登录和API密钥管理测试 ==="
 echo
@@ -109,6 +109,55 @@ if [ "$LOGIN_SUCCESS" = "true" ]; then
     
     echo "聊天响应:"
     echo "$CHAT_RESPONSE" | jq .
+    
+    # 7.1 测试上下文对话
+    echo
+    echo "7.1 测试上下文对话..."
+    CONV_ID="test-conversation-$(date +%s)"
+    
+    echo "第一轮对话（创建会话）:"
+    CHAT1_RESPONSE=$(curl -s -X POST "$BASE_URL/v1/chat/completions" \
+      -H "Content-Type: application/json" \
+      -H "Authorization: Bearer $API_KEY" \
+      -d "{
+        \"model\": \"deepseek\",
+        \"conversation_id\": \"$CONV_ID\",
+        \"messages\": [
+          {\"role\": \"user\", \"content\": \"我的名字是张三，请记住\"}
+        ],
+        \"stream\": false,
+        \"max_tokens\": 50
+      }")
+    
+    echo "$CHAT1_RESPONSE" | jq .
+    
+    echo
+    echo "第二轮对话（使用相同conversation_id）:"
+    CHAT2_RESPONSE=$(curl -s -X POST "$BASE_URL/v1/chat/completions" \
+      -H "Content-Type: application/json" \
+      -H "Authorization: Bearer $API_KEY" \
+      -d "{
+        \"model\": \"deepseek\",
+        \"conversation_id\": \"$CONV_ID\",
+        \"messages\": [
+          {\"role\": \"user\", \"content\": \"我的名字是什么？\"}
+        ],
+        \"stream\": false,
+        \"max_tokens\": 50
+      }")
+    
+    echo "$CHAT2_RESPONSE" | jq .
+    
+    # 7.2 查看会话池统计
+    echo
+    echo "7.2 会话池统计信息:"
+    STATS_RESPONSE=$(curl -s -X POST "$BASE_URL/api_keys/stats" \
+      -H "Content-Type: application/json" \
+      -d "{
+        \"api_key\": \"$API_KEY\"
+      }")
+    
+    echo "$STATS_RESPONSE" | jq .
     
 else
     echo "✗ 登录失败"

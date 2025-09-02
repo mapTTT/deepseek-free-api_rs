@@ -1,22 +1,30 @@
-FROM node:lts AS BUILD_IMAGE
+FROM rust:1.75 as builder
 
 WORKDIR /app
+COPY . .
+RUN cargo build --release
 
-COPY . /app
+FROM debian:bookworm-slim
 
-RUN yarn install --registry https://registry.npmmirror.com/ && yarn run build
+# 安装必要的运行时依赖
+RUN apt-get update && \
+    apt-get install -y ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
 
-FROM node:lts-alpine
+# 复制二进制文件和WASM文件
+COPY --from=builder /app/target/release/deepseek-free-api /usr/local/bin/
+COPY --from=builder /app/sha3_wasm_bg.7b9ca65ddd.wasm /usr/local/bin/
 
-COPY --from=BUILD_IMAGE /app/configs /app/configs
-COPY --from=BUILD_IMAGE /app/package.json /app/package.json
-COPY --from=BUILD_IMAGE /app/dist /app/dist
-COPY --from=BUILD_IMAGE /app/public /app/public
-COPY --from=BUILD_IMAGE /app/*.wasm /app/
-COPY --from=BUILD_IMAGE /app/node_modules /app/node_modules
+# 设置工作目录
+WORKDIR /usr/local/bin
 
-WORKDIR /app
-
+# 暴露端口
 EXPOSE 8000
 
-CMD ["npm", "start"]
+# 设置环境变量
+ENV RUST_LOG=info
+ENV HOST=0.0.0.0
+ENV PORT=8000
+
+# 运行应用
+CMD ["deepseek-free-api"]

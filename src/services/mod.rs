@@ -4,6 +4,7 @@ pub mod deepseek_client;
 pub mod message_processor;
 pub mod login_service;
 pub mod api_key_manager;
+pub mod session_pool;
 
 pub use token_manager::TokenManager;
 pub use challenge_solver::ChallengeSolver;
@@ -11,3 +12,4 @@ pub use deepseek_client::DeepSeekClient;
 pub use message_processor::MessageProcessor;
 pub use login_service::LoginService;
 pub use api_key_manager::ApiKeyManager;
+pub use session_pool::SessionPoolManager;

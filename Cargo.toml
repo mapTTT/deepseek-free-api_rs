@@ -8,7 +8,7 @@ license = "ISC"
 
 [dependencies]
 # Web框架
-tokio = { version = "1.0", features = ["full"] }
+tokio = { version = "1.0", features = ["full", "sync"] }
 axum = { version = "0.7", features = ["ws"] }
 axum-extra = { version = "0.9", features = ["typed-header"] }
 tower = "0.4"
